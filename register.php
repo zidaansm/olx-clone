@@ -1,3 +1,63 @@
+<?php
+session_start();
+require_once 'config.php'; // Menyertakan koneksi PDO
+
+// Variabel untuk menampung pesan error/sukses dan value form lama
+$error = '';
+$name_val = '';
+$email_val = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // 1. Ambil & bersihkan input
+    $name = trim($_POST['name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $password_confirm = $_POST['password_confirm'] ?? '';
+
+    // Simpan untuk repopulate form (mencegah user mengetik ulang jika ada error)
+    $name_val = htmlspecialchars($name);
+    $email_val = htmlspecialchars($email);
+
+    // 2. Validasi Input
+    if (empty($name) || empty($email) || empty($password) || empty($password_confirm)) {
+        $error = "Semua kolom wajib diisi.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Format email tidak valid.";
+    } elseif (strlen($password) < 8) {
+        $error = "Password minimal harus 8 karakter.";
+    } elseif ($password !== $password_confirm) {
+        $error = "Konfirmasi password tidak cocok.";
+    } else {
+        // 3. Cek apakah email sudah terdaftar di database
+        try {
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = :email LIMIT 1");
+            $stmt->execute(['email' => $email]);
+            
+            if ($stmt->fetch()) {
+                $error = "Email sudah terdaftar. Silakan gunakan email lain atau masuk ke akun Anda.";
+            } else {
+                // 4. Hash password sebelum disimpan (Keamanan)
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+                // 5. Simpan data user baru ke database
+                $insertStmt = $pdo->prepare("INSERT INTO users (name, email, password) VALUES (:name, :email, :password)");
+                $insertStmt->execute([
+                    'name' => $name,
+                    'email' => $email,
+                    'password' => $hashed_password
+                ]);
+
+                // 6. Redirect ke halaman login dengan parameter sukses
+                header("Location: login.php?registered=1");
+                exit;
+            }
+        } catch (PDOException $e) {
+            $error = "Terjadi kesalahan sistem. Silakan coba lagi nanti.";
+            // Catatan: Di production, log error $e->getMessage() ke file, jangan tampilkan ke user.
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -78,15 +138,23 @@
                 <p class="text-[14px] sm:text-[15px] text-gray-500">Bergabunglah dan mulai berjualan hari ini.</p>
             </div>
 
+            <!-- Tampilkan Error Jika Ada -->
+            <?php if (!empty($error)): ?>
+                <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 text-red-600">
+                    <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
+                    <p class="text-[13px] font-medium leading-relaxed"><?= $error ?></p>
+                </div>
+            <?php endif; ?>
+
             <!-- Register Form -->
-            <form action="#" method="POST" class="flex flex-col gap-5">
+            <form action="" method="POST" class="flex flex-col gap-5">
                 
                 <!-- Nama Lengkap -->
                 <div>
                     <label for="name" class="block text-[13px] font-bold text-gray-700 mb-1.5 ml-1">Nama Lengkap</label>
                     <div class="relative flex items-center">
                         <i data-lucide="user" class="absolute left-4 w-5 h-5 text-gray-400"></i>
-                        <input type="text" id="name" name="name" required placeholder="Contoh: Budi Santoso" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
+                        <input type="text" id="name" name="name" value="<?= $name_val ?>" required placeholder="Contoh: Budi Santoso" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
                     </div>
                 </div>
 
@@ -95,7 +163,7 @@
                     <label for="email" class="block text-[13px] font-bold text-gray-700 mb-1.5 ml-1">Email</label>
                     <div class="relative flex items-center">
                         <i data-lucide="mail" class="absolute left-4 w-5 h-5 text-gray-400"></i>
-                        <input type="email" id="email" name="email" required placeholder="Contoh: budi@email.com" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
+                        <input type="email" id="email" name="email" value="<?= $email_val ?>" required placeholder="Contoh: budi@email.com" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
                     </div>
                 </div>
 
