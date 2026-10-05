@@ -1,3 +1,52 @@
+<?php
+session_start();
+require_once 'config.php';
+
+// Jika user sudah login, langsung arahkan ke beranda
+if (isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit;
+}
+
+$error = '';
+$success = '';
+
+// Menangkap pesan sukses jika diarahkan dari register.php
+if (isset($_GET['registered']) && $_GET['registered'] == 1) {
+    $success = "Pendaftaran berhasil! Silakan masuk dengan akun baru Anda.";
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    if (empty($email) || empty($password)) {
+        $error = "Email dan password wajib diisi.";
+    } else {
+        try {
+            // Mencari user berdasarkan email
+            $stmt = $pdo->prepare("SELECT id, name, password FROM users WHERE email = :email LIMIT 1");
+            $stmt->execute(['email' => $email]);
+            $user = $stmt->fetch();
+
+            // Memverifikasi kecocokan password hash
+            if ($user && password_verify($password, $user['password'])) {
+                // Set sesi user
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['user_name'] = $user['name'];
+
+                // Redirect ke beranda
+                header("Location: index.php");
+                exit;
+            } else {
+                $error = "Email atau password salah.";
+            }
+        } catch (PDOException $e) {
+            $error = "Terjadi kesalahan sistem. Silakan coba lagi nanti.";
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -78,15 +127,31 @@
                 <p class="text-[14px] sm:text-[15px] text-gray-500">Masuk untuk mengelola iklan dan chat dengan pembeli.</p>
             </div>
 
+            <!-- Tampilkan Sukses Jika Ada -->
+            <?php if (!empty($success)): ?>
+                <div class="mb-6 p-4 rounded-xl bg-green-50 border border-green-100 flex items-start gap-3 text-green-700">
+                    <i data-lucide="check-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
+                    <p class="text-[13px] font-medium leading-relaxed"><?= htmlspecialchars($success) ?></p>
+                </div>
+            <?php endif; ?>
+
+            <!-- Tampilkan Error Jika Ada -->
+            <?php if (!empty($error)): ?>
+                <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 text-red-600">
+                    <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
+                    <p class="text-[13px] font-medium leading-relaxed"><?= htmlspecialchars($error) ?></p>
+                </div>
+            <?php endif; ?>
+
             <!-- Login Form -->
-            <form action="#" method="POST" class="flex flex-col gap-5">
+            <form action="" method="POST" class="flex flex-col gap-5">
                 
                 <!-- Email -->
                 <div>
                     <label for="email" class="block text-[13px] font-bold text-gray-700 mb-1.5 ml-1">Email</label>
                     <div class="relative flex items-center">
                         <i data-lucide="mail" class="absolute left-4 w-5 h-5 text-gray-400"></i>
-                        <input type="email" id="email" name="email" required placeholder="Contoh: budi@email.com" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
+                        <input type="email" id="email" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" required placeholder="Contoh: budi@email.com" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
                     </div>
                 </div>
 
@@ -132,7 +197,7 @@
             </p>
         </div>
         
-        <div class="text-center mt-6 z-10">
+        <div class="text-center mt-6 z-10 pb-4">
             <p class="text-[12px] text-gray-400">
                 Dengan masuk atau mendaftar, Anda menyetujui<br>
                 <a href="#" class="underline hover:text-gray-600">Syarat Ketentuan</a> dan <a href="#" class="underline hover:text-gray-600">Kebijakan Privasi</a> kami.
