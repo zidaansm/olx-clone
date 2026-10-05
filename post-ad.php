@@ -1,3 +1,95 @@
+<?php
+session_start();
+require_once 'config.php';
+
+// Pastikan user sudah login
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+$error = '';
+$success = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $user_id = $_SESSION['user_id'];
+    $category_id = $_POST['category_id'] ?? '';
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $price = $_POST['price'] ?? '';
+    $location = trim($_POST['location'] ?? '');
+
+    // Validasi basic
+    if (empty($category_id) || empty($title) || empty($description) || empty($price) || empty($location)) {
+        $error = "Semua kolom dengan tanda bintang (*) wajib diisi.";
+    } else {
+        try {
+            $pdo->beginTransaction();
+
+            // 1. Simpan ke tabel ads
+            $stmt = $pdo->prepare("INSERT INTO ads (user_id, category_id, title, description, price, location) VALUES (:user_id, :category_id, :title, :description, :price, :location)");
+            $stmt->execute([
+                'user_id' => $user_id,
+                'category_id' => $category_id,
+                'title' => $title,
+                'description' => $description,
+                'price' => $price,
+                'location' => $location
+            ]);
+
+            $ad_id = $pdo->lastInsertId();
+
+            // 2. Proses Upload Foto (jika ada)
+            if (isset($_FILES['images']) && count($_FILES['images']['name']) > 0 && $_FILES['images']['name'][0] != '') {
+                
+                $upload_dir = 'uploads/';
+                // Buat folder uploads jika belum ada
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+
+                $stmt_img = $pdo->prepare("INSERT INTO ad_images (ad_id, image_path) VALUES (:ad_id, :image_path)");
+                
+                $total_files = count($_FILES['images']['name']);
+                $allowed_types = ['image/jpeg', 'image/png', 'image/webp'];
+                
+                // Batasi maksimal 5 file (berjaga-jaga dari sisi server)
+                $max_files = min(5, $total_files); 
+
+                for ($i = 0; $i < $max_files; $i++) {
+                    $tmp_name = $_FILES['images']['tmp_name'][$i];
+                    $file_type = $_FILES['images']['type'][$i];
+                    
+                    if (is_uploaded_file($tmp_name) && in_array($file_type, $allowed_types)) {
+                        $ext = pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION);
+                        // Generate nama unik untuk menghindari konflik
+                        $new_filename = uniqid('ad_' . $ad_id . '_') . '.' . $ext; 
+                        $destination = $upload_dir . $new_filename;
+
+                        if (move_uploaded_file($tmp_name, $destination)) {
+                            // Simpan path gambar ke tabel ad_images
+                            $stmt_img->execute([
+                                'ad_id' => $ad_id,
+                                'image_path' => $destination
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            $pdo->commit();
+            
+            // Redirect ke halaman detail iklan yang baru dibuat (atau ke success page)
+            header("Location: detail.php?id=" . $ad_id);
+            exit;
+
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            $error = "Terjadi kesalahan sistem. Iklan gagal diposting. " . $e->getMessage();
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -68,7 +160,7 @@
                 OLX<span class="inline-block w-2.5 h-2.5 bg-sell rounded-full animate-logo-pulse ml-0.5"></span>
             </a>
             <a href="index.php" class="flex items-center gap-2 text-[14px] font-semibold text-gray-500 hover:text-primary transition-colors">
-                <span class="hidden sm:inline">Kembali ke Beranda</span>
+                <span class="hidden sm:inline">Batal Pasang</span>
                 <i data-lucide="x" class="w-5 h-5 sm:hidden"></i>
             </a>
         </div>
@@ -81,7 +173,14 @@
             <p class="text-[14px] sm:text-[15px] text-gray-500">Isi detail barang yang ingin kamu jual dengan lengkap agar cepat laku.</p>
         </div>
 
-        <form action="#" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl shadow-float p-6 sm:p-10 border border-gray-100 flex flex-col gap-8">
+        <?php if (!empty($error)): ?>
+            <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 text-red-600">
+                <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
+                <p class="text-[13px] font-medium leading-relaxed"><?= htmlspecialchars($error) ?></p>
+            </div>
+        <?php endif; ?>
+
+        <form action="" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl shadow-float p-6 sm:p-10 border border-gray-100 flex flex-col gap-8">
             
             <!-- SECTION 1: Detail Barang -->
             <div>
@@ -96,15 +195,27 @@
                         <div class="relative flex items-center">
                             <i data-lucide="tag" class="absolute left-4 w-5 h-5 text-gray-400"></i>
                             <select id="category_id" name="category_id" required class="w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer">
-                                <option value="" disabled selected>Pilih Kategori</option>
-                                <option value="1">Mobil</option>
-                                <option value="2">Motor</option>
-                                <option value="3">Properti</option>
-                                <option value="4">Elektronik</option>
-                                <option value="5">Furniture</option>
-                                <option value="6">Fashion</option>
-                                <option value="7">Hobi</option>
-                                <option value="8">Jasa & Lowongan</option>
+                                <option value="" disabled <?= empty($_POST['category_id']) ? 'selected' : '' ?>>Pilih Kategori</option>
+                                <?php
+                                // Ambil kategori dari database jika ada datanya
+                                try {
+                                    $cat_stmt = $pdo->query("SELECT id, name FROM categories ORDER BY name ASC");
+                                    while ($cat = $cat_stmt->fetch()) {
+                                        $selected = (isset($_POST['category_id']) && $_POST['category_id'] == $cat['id']) ? 'selected' : '';
+                                        echo "<option value='{$cat['id']}' {$selected}>{$cat['name']}</option>";
+                                    }
+                                } catch(PDOException $e) {
+                                    // Fallback manual jika gagal mengambil dari database
+                                    $mock_categories = [
+                                        1 => 'Mobil', 2 => 'Motor', 3 => 'Properti', 
+                                        4 => 'Elektronik', 5 => 'Furniture', 6 => 'Fashion'
+                                    ];
+                                    foreach ($mock_categories as $id => $name) {
+                                        $selected = (isset($_POST['category_id']) && $_POST['category_id'] == $id) ? 'selected' : '';
+                                        echo "<option value='{$id}' {$selected}>{$name}</option>";
+                                    }
+                                }
+                                ?>
                             </select>
                             <i data-lucide="chevron-down" class="absolute right-4 w-5 h-5 text-gray-400 pointer-events-none"></i>
                         </div>
@@ -115,7 +226,7 @@
                         <label for="title" class="block text-[13px] font-bold text-gray-700 mb-1.5 ml-1">Judul Iklan *</label>
                         <div class="relative flex items-center">
                             <i data-lucide="type" class="absolute left-4 w-5 h-5 text-gray-400"></i>
-                            <input type="text" id="title" name="title" required placeholder="Contoh: Toyota Avanza 1.5 G MT 2021 Putih" maxlength="150" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
+                            <input type="text" id="title" name="title" value="<?= htmlspecialchars($_POST['title'] ?? '') ?>" required placeholder="Contoh: Toyota Avanza 1.5 G MT 2021 Putih" maxlength="150" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
                         </div>
                         <p class="text-[11px] text-gray-400 mt-1.5 ml-1">Tulis judul yang menarik dan jelas (maks. 150 karakter).</p>
                     </div>
@@ -125,7 +236,7 @@
                         <label for="description" class="block text-[13px] font-bold text-gray-700 mb-1.5 ml-1">Deskripsi *</label>
                         <div class="relative">
                             <i data-lucide="align-left" class="absolute left-4 top-4 w-5 h-5 text-gray-400"></i>
-                            <textarea id="description" name="description" required placeholder="Jelaskan kondisi barang, kelengkapan, alasan jual, dll." rows="6" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-y"></textarea>
+                            <textarea id="description" name="description" required placeholder="Jelaskan kondisi barang, kelengkapan, alasan jual, dll." rows="6" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all resize-y"><?= htmlspecialchars($_POST['description'] ?? '') ?></textarea>
                         </div>
                     </div>
                 </div>
@@ -143,7 +254,7 @@
                         <label for="price" class="block text-[13px] font-bold text-gray-700 mb-1.5 ml-1">Harga (Rp) *</label>
                         <div class="relative flex items-center">
                             <span class="absolute left-4 font-bold text-gray-400">Rp</span>
-                            <input type="number" id="price" name="price" required placeholder="0" min="0" class="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold">
+                            <input type="number" id="price" name="price" value="<?= htmlspecialchars($_POST['price'] ?? '') ?>" required placeholder="0" min="0" class="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all font-bold">
                         </div>
                     </div>
 
@@ -152,7 +263,7 @@
                         <label for="location" class="block text-[13px] font-bold text-gray-700 mb-1.5 ml-1">Lokasi *</label>
                         <div class="relative flex items-center">
                             <i data-lucide="map" class="absolute left-4 w-5 h-5 text-gray-400"></i>
-                            <input type="text" id="location" name="location" required placeholder="Contoh: Jakarta Selatan" maxlength="100" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
+                            <input type="text" id="location" name="location" value="<?= htmlspecialchars($_POST['location'] ?? '') ?>" required placeholder="Contoh: Jakarta Selatan" maxlength="100" class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-[15px] text-gray-800 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all">
                         </div>
                     </div>
                 </div>
@@ -172,7 +283,8 @@
                         <p class="mb-2 text-sm text-gray-600 font-semibold"><span class="text-primary font-bold">Klik untuk unggah</span> atau seret foto ke sini</p>
                         <p class="text-xs text-gray-400">Maks. 5 foto (Format: JPG, PNG, WEBP)</p>
                     </div>
-                    <input id="images" name="images[]" type="file" accept="image/*" multiple />
+                    <!-- Form array name[] allows uploading multiple files -->
+                    <input id="images" name="images[]" type="file" accept="image/jpeg, image/png, image/webp" multiple />
                 </label>
                 
                 <!-- Image Preview Area -->
@@ -269,7 +381,7 @@
             if (this.files && this.files.length > 0) {
                 previewContainer.classList.remove('hidden');
                 
-                // Limit to 5 files
+                // Limit to 5 files visual preview
                 const files = Array.from(this.files).slice(0, 5);
                 
                 files.forEach((file, index) => {
@@ -290,10 +402,12 @@
                         previewContainer.appendChild(div);
                         lucide.createIcons();
                         
-                        // Fake delete button functionality (for UI demo)
+                        // Delete button functionality (Visual Only)
                         div.querySelector('.delete-img-btn').addEventListener('click', function(e) {
                             e.preventDefault();
                             div.remove();
+                            // In a real app, this should also remove the file from the FileList input
+                            // which requires DataTransfer object manipulation
                             if(previewContainer.children.length === 0) {
                                 previewContainer.classList.add('hidden');
                             }
