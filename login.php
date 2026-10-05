@@ -47,26 +47,28 @@
     </style>
 </head>
 
-<body class="font-sans bg-[#f7f8f9] text-gray-800 antialiased min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
-
-    <!-- Decorative Background Shapes -->
-    <div class="absolute -top-32 -left-32 w-96 h-96 bg-primary opacity-[0.03] rounded-full pointer-events-none" aria-hidden="true"></div>
-    <div class="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-sell opacity-[0.05] rounded-full pointer-events-none" aria-hidden="true"></div>
+<body class="font-sans bg-[#f7f8f9] text-gray-800 antialiased overflow-x-hidden min-h-screen flex flex-col relative">
 
     <!-- Header (Simple) -->
-    <header class="absolute top-0 inset-x-0 w-full px-4 sm:px-8 py-5 flex items-center justify-between z-10">
-        <a href="index.php" class="flex items-center gap-1 text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
-            OLX<span class="inline-block w-2.5 h-2.5 bg-sell rounded-full animate-logo-pulse ml-0.5"></span>
-        </a>
-        <a href="index.php" class="flex items-center gap-2 text-[14px] font-semibold text-gray-500 hover:text-primary transition-colors">
-            <span class="hidden sm:inline">Kembali ke Beranda</span>
-            <i data-lucide="x" class="w-5 h-5 sm:hidden"></i>
-        </a>
+    <header class="bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm z-50 sticky top-0">
+        <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 sm:h-20">
+            <a href="index.php" class="flex items-center gap-1 text-2xl sm:text-3xl font-extrabold text-primary tracking-tight">
+                OLX<span class="inline-block w-2.5 h-2.5 bg-sell rounded-full animate-logo-pulse ml-0.5"></span>
+            </a>
+            <a href="index.php" class="flex items-center gap-2 text-[14px] font-semibold text-gray-500 hover:text-primary transition-colors">
+                <span class="hidden sm:inline">Kembali ke Beranda</span>
+                <i data-lucide="x" class="w-5 h-5 sm:hidden"></i>
+            </a>
+        </div>
     </header>
 
     <!-- Login Container -->
-    <main class="w-full max-w-[440px] px-4 py-8 z-10 mt-12 sm:mt-0">
-        <div class="bg-white rounded-3xl shadow-float p-6 sm:p-10 border border-gray-100">
+    <main class="flex-1 flex flex-col items-center justify-center w-full px-4 py-12 relative overflow-hidden">
+        <!-- Decorative Background Shapes -->
+        <div class="absolute -top-32 -left-32 w-96 h-96 bg-primary opacity-[0.03] rounded-full pointer-events-none" aria-hidden="true"></div>
+        <div class="absolute -bottom-32 -right-32 w-[500px] h-[500px] bg-sell opacity-[0.05] rounded-full pointer-events-none" aria-hidden="true"></div>
+
+        <div class="w-full max-w-[440px] bg-white rounded-3xl shadow-float p-6 sm:p-10 border border-gray-100 z-10">
             
             <div class="text-center mb-8">
                 <div class="w-16 h-16 bg-primary-light/5 text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -126,18 +128,62 @@
             <!-- Register Link -->
             <p class="text-center text-[13px] text-gray-500 mt-8">
                 Belum punya akun? 
-                <a href="/register" class="font-bold text-primary hover:underline">Daftar Sekarang</a>
+                <a href="register.php" class="font-bold text-primary hover:underline">Daftar Sekarang</a>
             </p>
-
         </div>
         
-        <div class="text-center mt-8">
+        <div class="text-center mt-6 z-10">
             <p class="text-[12px] text-gray-400">
                 Dengan masuk atau mendaftar, Anda menyetujui<br>
                 <a href="#" class="underline hover:text-gray-600">Syarat Ketentuan</a> dan <a href="#" class="underline hover:text-gray-600">Kebijakan Privasi</a> kami.
             </p>
         </div>
     </main>
+
+    <!-- ========================================
+         FOOTER
+         ======================================== -->
+    <footer class="bg-gray-900 text-gray-400 mt-auto" id="footer">
+        <div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12 pb-12 border-b border-white/10">
+                <div class="col-span-2 md:col-span-4 lg:col-span-1">
+                    <div class="text-2xl font-black text-white flex items-center gap-1 mb-5">
+                        OLX<span class="inline-block w-2.5 h-2.5 bg-sell rounded-full"></span>
+                    </div>
+                    <p class="text-[14px] text-gray-500 leading-relaxed mb-6">
+                        Platform jual beli online terbesar dan terpercaya di Indonesia. Cara mudah menemukan barang impian.
+                    </p>
+                </div>
+                <div class="col-span-1">
+                    <h3 class="text-[13px] font-bold text-white mb-5">KATEGORI</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Mobil Bekas</a></li>
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Motor Bekas</a></li>
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Properti</a></li>
+                    </ul>
+                </div>
+                <div class="col-span-1">
+                    <h3 class="text-[13px] font-bold text-white mb-5">TENTANG OLX</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Tentang Kami</a></li>
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Karir</a></li>
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Blog</a></li>
+                    </ul>
+                </div>
+                <div class="col-span-2 md:col-span-2 lg:col-span-1">
+                    <h3 class="text-[13px] font-bold text-white mb-5">BANTUAN</h3>
+                    <ul class="space-y-3">
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Pusat Bantuan</a></li>
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Tips Keamanan</a></li>
+                        <li><a href="#" class="text-[14px] hover:text-white transition-colors">Syarat & Ketentuan</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="py-6 text-center sm:text-left text-[13px] text-gray-500">
+                &copy; 2026 OLX Clone. All rights reserved.
+            </div>
+        </div>
+    </footer>
 
     <!-- ========================================
          SCRIPTS
